@@ -1,8 +1,8 @@
 using furniro_server_hari.Models;
 
-namespace furniro_server_hari.DTO
+namespace furniro_server_hari.DTO.ProductDTOs
 {
-    public class CreateProductDto
+    public class UpdateProductDto
     {
         public string Name { get; set; } = string.Empty;
         public decimal Price { get; set; }
@@ -19,5 +19,6 @@ namespace furniro_server_hari.DTO
         public List<Image> ThumbNailImages { get; set; } = [];
         public List<Image> DescriptionImages { get; set; } = [];
         public ShareLink ShareLinks { get; set; } = new ShareLink();
+
     }
 }

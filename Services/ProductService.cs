@@ -1,81 +1,86 @@
-using Supabase;
+using AutoMapper;
+using furniro_server_hari.DTO.ProductDTOs;
+using furniro_server_hari.Interfaces;
 using furniro_server_hari.Models;
 
 namespace furniro_server_hari.Services
 {
-    public class SupabaseService
+    public class ProductService
     {
-        private readonly Client _client;
+        private readonly IProductRepository _productRepository;
+        private readonly IMapper _mapper;
 
-        public SupabaseService(string supabaseUrl, string supabaseKey)
+        public ProductService(IProductRepository productRepository, IMapper mapper)
         {
-            _client = new Client(supabaseUrl, supabaseKey);
-            _client.InitializeAsync().Wait();
+            _productRepository = productRepository;
+            _mapper = mapper;
         }
 
-        public Client GetClient()
+        public async Task<List<ProductDto>> GetProductsAsync()
         {
-            return _client;
+            var products = await _productRepository.GetProductsAsync();
+            var productDtos = _mapper.Map<List<ProductDto>>(products);
+            return productDtos;
         }
 
-        public async Task<List<Product>> GetProductsAsync()
+        public async Task<ProductDto?> GetProductByIdAsync(string id)
         {
-            var products = await GetClient().From<Product>().Get();
-            return products.Models;
+            var product = await _productRepository.GetProductByIdAsync(id);
+            if (product == null)
+                return null;
+            return _mapper.Map<ProductDto>(product);
         }
 
-        public async Task<Product?> GetProductByIdAsync(string id)
+        public async Task<bool> DoesProductExist(string id)
         {
-            var response = await GetClient().From<Product>().Where(x => x.ProductId == id).Single();
-            return response;
+            try
+            {
+                return await _productRepository.DoesProductExist(id);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error Message : " + e.Message);
+                return false;
+            }
         }
 
-        public async Task<Product?> CreateProductAsync(Product product)
+        public async Task<ProductDto?> CreateProductAsync(CreateProductDto productDto)
         {
-            var response = await GetClient().From<Product>().Insert(product);
-            return response.Model;
+            var product = _mapper.Map<Product>(productDto);
+            var createdProduct = await _productRepository.CreateProductAsync(product);
+            if (createdProduct == null)
+                return null;
+            return _mapper.Map<ProductDto>(createdProduct);
         }
 
-
-        public async Task<Product?> UpdateProductAsync(Product product)
+        public async Task<Product?> UpdateProductAsync(UpdateProductDto productDto, string id)
         {
-            var response = await _client.From<Product>().Where(x => x.ProductId == product.ProductId).Update(product);
-            return response.Model;
+            try
+            {
+                var product = _mapper.Map<Product>(productDto);
+                product.ProductId = id;
+
+                var updatedProduct = await _productRepository.UpdateProductAsync(id, product);
+                if (updatedProduct == null)
+                    return null;
+                return updatedProduct;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error Message : " + e.Message);
+                return null;
+            }
         }
 
         public async Task<bool> DeleteProductAsync(string id)
         {
-            try
-            {
-                await _client.From<Product>().Where(x => x.ProductId == id).Delete();
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-                throw;
-            }
+            return await _productRepository.DeleteProductAsync(id);
         }
 
-        public async Task<List<Product>> GetRelatedProducts(string productId)
+        public async Task<List<ProductDto>> GetRelatedProducts(string productId)
         {
-            // Fetch the current product based on the productId
-            var currentProduct = await _client
-                .From<Product>()
-                .Where(p => p.ProductId == productId)
-                .Single();
-
-            if (currentProduct == null) return [];
-
-            // Fetch related products based on category and tags
-            var relatedProducts = await _client
-                .From<Product>()
-                .Where(p => p.Category == currentProduct.Category && p.ProductId != currentProduct.ProductId)
-                .Limit(10) // Limiting the number of related products
-                .Get();
-
-            return relatedProducts.Models;
+            var relatedProducts = await _productRepository.GetRelatedProducts(productId);
+            return _mapper.Map<List<ProductDto>>(relatedProducts);
         }
-
     }
 }
